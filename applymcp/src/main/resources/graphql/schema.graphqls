@@ -1,0 +1,111 @@
+type Query {
+    getPerson(id: ID!): Person
+    allSkills: [Skill!]!
+}
+
+type Mutation {
+    updatePerson(id: ID!, input: PersonInput!): Person
+
+    addWorkExperience(profileId: ID!, input: WorkExperienceInput!): Person
+    removeWorkExperience(profileId: ID!, index: Int!): Person
+
+    addEducation(profileId: ID!, input: EducationInput!): Person
+    removeEducation(profileId: ID!, index: Int!): Person
+
+    addProject(profileId: ID!, input: ProjectInput!): Person
+    removeProject(profileId: ID!, index: Int!): Person
+}
+
+# --- TYPES ---
+
+type Person {
+    id: ID!
+    firstName: String!
+    lastName: String!
+    email: String!
+    birthDate: String
+    phoneNumber: String
+    address: String
+    linkedinUrl: String
+    githubUrl: String
+    portfolioUrl: String
+    summary: String
+    projects: [Project]
+    educations: [Education]
+    workExperiences: [WorkExperience]
+    skills: [Skill]
+}
+
+type WorkExperience {
+    company: String!
+    role: String!
+    startDate: String!
+    endDate: String
+    location: String
+    contractType: String
+    description: String
+    achievement: String
+}
+
+type Education {
+    institution: String!
+    description: String
+    degree: String
+    location: String
+    startYear: Int
+    endYear: Int
+}
+type Project {
+    title: String!
+    description: String
+    repositoryUrl: String
+    liveDemoUrl: String
+}
+
+type Skill {
+    id: ID!
+    name: String!
+    category: String!
+}
+
+# --- INPUTS (Pour les mutations) ---
+
+input PersonInput {
+    firstName: String
+    lastName: String
+    email: String
+    birthDate: String
+    phoneNumber: String
+    address: String
+    linkedinUrl: String
+    githubUrl: String
+    portfolioUrl: String
+    summary: String
+}
+
+input WorkExperienceInput {
+    company: String!
+    role: String!
+    startDate: String!
+    endDate: String
+    location: String
+    contractType: String
+    description: String
+    achievement: String
+}
+
+input EducationInput {
+    institution: String!
+    description: String
+    degree: String
+    location: String
+    startDate: String
+    endDate: String
+}
+
+input ProjectInput {
+    title: String!
+    description: String
+    repositoryUrl: String
+    liveDemoUrl: String
+}

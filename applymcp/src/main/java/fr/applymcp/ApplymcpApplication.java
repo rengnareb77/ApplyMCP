@@ -1,4 +1,4 @@
-package fr.applymcp.applymcp;
+package fr.applymcp;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
