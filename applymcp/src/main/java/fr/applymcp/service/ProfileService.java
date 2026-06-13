@@ -21,6 +21,13 @@ public class ProfileService {
                 .orElseThrow(()-> new RuntimeException("Person not found with id: " + id));
     }
 
+    public Person getFirstProfile() {
+        return personRepository.findAll()
+                .stream()
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("No profile found"));
+    }
+
     public Person updatePerson(String personId, Person updatedPerson) {
         Person person = getPersonById(personId);
         personMapper.updatePersonFromInput(updatedPerson, person);

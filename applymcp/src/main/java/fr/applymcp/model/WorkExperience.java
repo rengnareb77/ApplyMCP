@@ -18,4 +18,5 @@ public class WorkExperience {
     private String contractType;
     private String description;
     private String achievement;
+    
 }
