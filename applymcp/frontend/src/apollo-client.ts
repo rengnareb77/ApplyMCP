@@ -1,5 +1,5 @@
 // Utilitaire pour faire des requêtes GraphQL
-const GRAPHQL_ENDPOINT = 'http://localhost:8080/graphql';
+const GRAPHQL_ENDPOINT = import.meta.env.VITE_GRAPHQL_ENDPOINT || 'http://localhost:8080/graphql';
 
 export async function graphqlQuery(query: string, variables?: any) {
   try {
@@ -26,5 +26,3 @@ export async function graphqlQuery(query: string, variables?: any) {
     throw error;
   }
 }
-
-
