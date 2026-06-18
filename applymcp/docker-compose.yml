@@ -2,13 +2,18 @@ version: '3.8'
 
 services:
   app:
-    build: .
+    build:
+      context: .
+      args:
+        - VITE_GRAPHQL_ENDPOINT_ARG=${VITE_GRAPHQL_ENDPOINT}
     image: applymcp
-    platform: linux/amd64 # Spécifie l'architecture cible pour la construction
+    platform: linux/amd64
     ports:
       - "8080:8080"
     environment:
-      - SPRING_DATA_MONGODB_URI=mongodb://mongo:27017/applymcp
+      - SPRING_DATA_MONGODB_HOST=${MONGO_HOST}
+      - SPRING_DATA_MONGODB_PORT=${MONGO_PORT}
+      - SPRING_DATA_MONGODB_DATABASE=${MONGO_DATABASE}
     depends_on:
       mongo:
         condition: service_healthy
