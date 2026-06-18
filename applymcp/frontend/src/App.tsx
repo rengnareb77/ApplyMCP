@@ -4,16 +4,70 @@ import ProfileEditPage from './pages/ProfileEditPage';
 import WorkExperiencesPage from './pages/WorkExperiencesPage';
 import EducationsPage from './pages/EducationsPage';
 import ProjectsPage from './pages/ProjectsPage';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 // Main layout component
 function MainLayout() {
-  const profileId = '6a285a87006716e3ea543875'; // You can make this dynamic
+  const [profileId, setProfileId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    const fetchProfileId = async () => {
+      try {
+        const response = await fetch('/graphql', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            query: `
+              query GetFirstProfile {
+                getFirstProfile {
+                  id
+                }
+              }
+            `,
+          }),
+        });
+
+        const { data, errors } = await response.json();
+
+        if (errors) {
+          throw new Error(errors[0].message);
+        }
+
+        if (data?.getFirstProfile) {
+          setProfileId(data.getFirstProfile.id);
+        } else {
+          throw new Error('No profile found');
+        }
+      } catch (err) {
+        setError((err as Error).message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfileId();
+  }, []);
 
   const handleRefresh = () => {
     setRefreshKey((prev) => prev + 1);
   };
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  if (error) {
+    return <div>Error: {error}</div>;
+  }
+
+  if (!profileId) {
+    return <div>No profile available.</div>;
+  }
 
   return (
     <div>
@@ -65,4 +119,4 @@ function App() {
   );
 }
 
-export default App
+export default App;

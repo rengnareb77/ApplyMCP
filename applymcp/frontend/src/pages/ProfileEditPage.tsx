@@ -19,6 +19,8 @@ export default function ProfileEditPage({ profileId, onProfileUpdate }: ProfileE
     portfolioUrl: '',
     summary: '',
   });
+  const [languagesInput, setLanguagesInput] = useState('');
+  const [hobbiesInput, setHobbiesInput] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -40,9 +42,29 @@ export default function ProfileEditPage({ profileId, onProfileUpdate }: ProfileE
         portfolioUrl: data.getPerson.portfolioUrl || '',
         summary: data.getPerson.summary || '',
       });
+      setLanguagesInput(Array.isArray(data.getPerson.languages) ? data.getPerson.languages.join(', ') : '');
+      setHobbiesInput(Array.isArray(data.getPerson.hobbies) ? data.getPerson.hobbies.join(', ') : '');
     } catch (err: any) {
       setError(err.message || 'Erreur lors du chargement');
     }
+  };
+
+  const parseList = (raw: string): string[] => {
+    const parts = raw
+      .split(/[,;\n]/g)
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    const out: string[] = [];
+    const seen = new Set<string>();
+    for (const p of parts) {
+      const key = p.toLowerCase();
+      if (!seen.has(key)) {
+        out.push(p);
+        seen.add(key);
+      }
+    }
+    return out;
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -57,9 +79,14 @@ export default function ProfileEditPage({ profileId, onProfileUpdate }: ProfileE
     e.preventDefault();
     setLoading(true);
     try {
+      const input = {
+        ...formData,
+        languages: parseList(languagesInput),
+        hobbies: parseList(hobbiesInput),
+      };
       await graphqlQuery(UPDATE_PERSON, {
         id: profileId,
-        input: formData,
+        input,
       });
       setError('');
       onProfileUpdate?.();
@@ -188,6 +215,29 @@ export default function ProfileEditPage({ profileId, onProfileUpdate }: ProfileE
             className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Décrivez votre expérience et vos objectifs professionnels..."
           />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          <div>
+            <label className="block text-sm font-medium mb-1">Langues</label>
+            <input
+              type="text"
+              value={languagesInput}
+              onChange={(e) => setLanguagesInput(e.target.value)}
+              placeholder="ex: Français, Anglais, Espagnol"
+              className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Centres d'intérêt</label>
+            <input
+              type="text"
+              value={hobbiesInput}
+              onChange={(e) => setHobbiesInput(e.target.value)}
+              placeholder="ex: Course à pied, Photo, Échecs"
+              className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
         </div>
 
         <button

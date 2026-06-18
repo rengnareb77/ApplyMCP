@@ -14,19 +14,27 @@ export const GET_PERSON = `
       githubUrl
       portfolioUrl
       summary
+      skills
+      hobbies
+      languages
       projects {
         title
         description
+        year
         repositoryUrl
         liveDemoUrl
+        skills {
+          type
+          name
+        }
       }
       educations {
         institution
         description
         degree
         location
-        startYear
-        endYear
+        startDate
+        endDate
       }
       workExperiences {
         company
@@ -37,11 +45,10 @@ export const GET_PERSON = `
         contractType
         description
         achievement
-      }
-      skills {
-        id
-        name
-        category
+        skills {
+          type
+          name
+        }
       }
     }
   }
@@ -61,18 +68,12 @@ export const UPDATE_PERSON = `
       githubUrl
       portfolioUrl
       summary
+      hobbies
+      languages
     }
   }
 `;
 
-export const UPDATE_SUMMARY = `
-  mutation UpdateSummary($id: ID!, $newSummary: String!) {
-    updateSummary(id: $id, newSummary: $newSummary) {
-      id
-      summary
-    }
-  }
-`;
 
 export const ADD_WORK_EXPERIENCE = `
   mutation AddWorkExperience($profileId: ID!, $input: WorkExperienceInput!) {
@@ -87,6 +88,32 @@ export const ADD_WORK_EXPERIENCE = `
         contractType
         description
         achievement
+        skills {
+          type
+          name
+        }
+      }
+    }
+  }
+`;
+
+export const UPDATE_WORK_EXPERIENCE = `
+  mutation UpdateWorkExperience($profileId: ID!, $index: Int!, $input: WorkExperienceInput!) {
+    updateWorkExperience(profileId: $profileId, index: $index, input: $input) {
+      id
+      workExperiences {
+        company
+        role
+        startDate
+        endDate
+        location
+        contractType
+        description
+        achievement
+        skills {
+          type
+          name
+        }
       }
     }
   }
@@ -105,6 +132,10 @@ export const REMOVE_WORK_EXPERIENCE = `
         contractType
         description
         achievement
+        skills {
+          type
+          name
+        }
       }
     }
   }
@@ -119,8 +150,24 @@ export const ADD_EDUCATION = `
         description
         degree
         location
-        startYear
-        endYear
+        startDate
+        endDate
+      }
+    }
+  }
+`;
+
+export const UPDATE_EDUCATION = `
+  mutation UpdateEducation($profileId: ID!, $index: Int!, $input: EducationInput!) {
+    updateEducation(profileId: $profileId, index: $index, input: $input) {
+      id
+      educations {
+        institution
+        description
+        degree
+        location
+        startDate
+        endDate
       }
     }
   }
@@ -135,8 +182,8 @@ export const REMOVE_EDUCATION = `
         description
         degree
         location
-        startYear
-        endYear
+        startDate
+        endDate
       }
     }
   }
@@ -151,6 +198,30 @@ export const ADD_PROJECT = `
         description
         repositoryUrl
         liveDemoUrl
+        skills {
+          type
+          name
+        }
+        year
+      }
+    }
+  }
+`;
+
+export const UPDATE_PROJECT = `
+  mutation UpdateProject($profileId: ID!, $index: Int!, $input: ProjectInput!) {
+    updateProject(profileId: $profileId, index: $index, input: $input) {
+      id
+      projects {
+        title
+        description
+        repositoryUrl
+        liveDemoUrl
+        skills {
+          type
+          name
+        }
+        year
       }
     }
   }
@@ -165,6 +236,11 @@ export const REMOVE_PROJECT = `
         description
         repositoryUrl
         liveDemoUrl
+        skills {
+          type
+          name
+        }
+        year
       }
     }
   }

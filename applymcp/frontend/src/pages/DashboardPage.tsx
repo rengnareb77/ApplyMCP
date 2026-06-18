@@ -1,10 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { GET_PERSON } from '../graphql';
 import { graphqlQuery } from '../apollo-client';
 
 interface DashboardPageProps {
   profileId: string;
+}
+
+interface Skill {
+  name: string;
+  type: string;
 }
 
 export default function DashboardPage({ profileId }: DashboardPageProps) {
@@ -27,6 +32,38 @@ export default function DashboardPage({ profileId }: DashboardPageProps) {
       setLoading(false);
     }
   };
+
+  const allSkills = useMemo(() => {
+    if (!profile) return {};
+
+    const skills: Skill[] = [];
+    if (profile.workExperiences) {
+      profile.workExperiences.forEach((exp: any) => {
+        if (exp.skills) {
+          skills.push(...exp.skills);
+        }
+      });
+    }
+    if (profile.projects) {
+      profile.projects.forEach((proj: any) => {
+        if (proj.skills) {
+          skills.push(...proj.skills);
+        }
+      });
+    }
+
+    // Group by type
+    return skills.reduce((acc, skill) => {
+      const { type, name } = skill;
+      if (!acc[type]) {
+        acc[type] = [];
+      }
+      if (!acc[type].includes(name)) {
+        acc[type].push(name);
+      }
+      return acc;
+    }, {} as Record<string, string[]>);
+  }, [profile]);
 
   if (loading) return <div className="flex items-center justify-center h-screen">Chargement...</div>;
   if (error) return <div className="flex items-center justify-center h-screen text-red-600">Erreur: {error}</div>;
@@ -112,6 +149,43 @@ export default function DashboardPage({ profileId }: DashboardPageProps) {
           </div>
         </div>
 
+        {(Array.isArray(profile.languages) && profile.languages.length > 0) ||
+        (Array.isArray(profile.hobbies) && profile.hobbies.length > 0) ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            {Array.isArray(profile.languages) && profile.languages.length > 0 && (
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <h2 className="text-xl font-bold mb-4">Langues</h2>
+                <div className="flex flex-wrap gap-2">
+                  {profile.languages.map((lang: string, index: number) => (
+                    <span
+                      key={`${lang}-${index}`}
+                      className="inline-flex items-center px-2 py-0.5 rounded border bg-gray-50 text-gray-700 text-xs"
+                    >
+                      {lang}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {Array.isArray(profile.hobbies) && profile.hobbies.length > 0 && (
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <h2 className="text-xl font-bold mb-4">Centres d'intérêt</h2>
+                <div className="flex flex-wrap gap-2">
+                  {profile.hobbies.map((hobby: string, index: number) => (
+                    <span
+                      key={`${hobby}-${index}`}
+                      className="inline-flex items-center px-2 py-0.5 rounded border bg-gray-50 text-gray-700 text-xs"
+                    >
+                      {hobby}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : null}
+
         {/* Management Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <Link
@@ -152,14 +226,23 @@ export default function DashboardPage({ profileId }: DashboardPageProps) {
         </div>
 
         {/* Skills */}
-        {profile.skills && profile.skills.length > 0 && (
+        {Object.keys(allSkills).length > 0 && (
           <div className="bg-white rounded-lg shadow-md p-6">
             <h2 className="text-2xl font-bold mb-4">Compétences</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {profile.skills.map((skill: any, index: number) => (
-                <div key={index} className="bg-gray-50 p-3 rounded">
-                  <p className="text-sm text-gray-600">{skill.category}</p>
-                  <p className="font-semibold">{skill.name}</p>
+            <div className="space-y-4">
+              {Object.entries(allSkills).map(([type, skills]) => (
+                <div key={type}>
+                  <h3 className="text-lg font-semibold text-gray-800 mb-2">{type}</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {skills.map((skill, index) => (
+                      <span
+                        key={`${skill}-${index}`}
+                        className="inline-flex items-center px-3 py-1 rounded-full bg-blue-100 text-blue-800 text-sm font-medium"
+                      >
+                        {skill}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>

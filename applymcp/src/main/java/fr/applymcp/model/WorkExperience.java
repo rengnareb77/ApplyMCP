@@ -1,13 +1,13 @@
 package fr.applymcp.model;
 
 import jakarta.validation.constraints.NotBlank;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
-@Getter
-@Setter
+@Data
 public class WorkExperience {
     @NotBlank(message = "Company name is required")
     private String company;
@@ -18,5 +18,5 @@ public class WorkExperience {
     private String contractType;
     private String description;
     private String achievement;
-    
+    private List<Skill> skills = new ArrayList<>();
 }

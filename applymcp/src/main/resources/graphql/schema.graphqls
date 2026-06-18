@@ -1,6 +1,6 @@
 type Query {
     getPerson(id: ID!): Person
-    allSkills: [Skill!]!
+    getFirstProfile: Person
 }
 
 type Mutation {
@@ -8,12 +8,15 @@ type Mutation {
 
     addWorkExperience(profileId: ID!, input: WorkExperienceInput!): Person
     removeWorkExperience(profileId: ID!, index: Int!): Person
+    updateWorkExperience(profileId: ID!, index: Int!, input: WorkExperienceInput!): Person
 
     addEducation(profileId: ID!, input: EducationInput!): Person
     removeEducation(profileId: ID!, index: Int!): Person
+    updateEducation(profileId: ID!, index: Int!, input: EducationInput!): Person
 
     addProject(profileId: ID!, input: ProjectInput!): Person
     removeProject(profileId: ID!, index: Int!): Person
+    updateProject(profileId: ID!, index: Int!, input: ProjectInput!): Person
 }
 
 # --- TYPES ---
@@ -30,10 +33,17 @@ type Person {
     githubUrl: String
     portfolioUrl: String
     summary: String
+    hobbies: [String]
+    languages: [String]
     projects: [Project]
     educations: [Education]
     workExperiences: [WorkExperience]
-    skills: [Skill]
+    skills: [String!]!
+}
+
+type Skill {
+    type: String
+    name: String
 }
 
 type WorkExperience {
@@ -45,6 +55,7 @@ type WorkExperience {
     contractType: String
     description: String
     achievement: String
+    skills: [Skill]
 }
 
 type Education {
@@ -52,21 +63,18 @@ type Education {
     description: String
     degree: String
     location: String
-    startYear: Int
-    endYear: Int
+    startDate: String
+    endDate: String
 }
 type Project {
     title: String!
     description: String
+    year: String
     repositoryUrl: String
     liveDemoUrl: String
+    skills: [Skill]
 }
 
-type Skill {
-    id: ID!
-    name: String!
-    category: String!
-}
 
 # --- INPUTS (Pour les mutations) ---
 
@@ -81,6 +89,8 @@ input PersonInput {
     githubUrl: String
     portfolioUrl: String
     summary: String
+    hobbies: [String]
+    languages: [String]
 }
 
 input WorkExperienceInput {
@@ -92,6 +102,12 @@ input WorkExperienceInput {
     contractType: String
     description: String
     achievement: String
+    skills: [SkillInput]
+}
+
+input SkillInput {
+    type: String
+    name: String
 }
 
 input EducationInput {
@@ -108,4 +124,6 @@ input ProjectInput {
     description: String
     repositoryUrl: String
     liveDemoUrl: String
+    skills: [SkillInput]
+    year: String
 }

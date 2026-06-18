@@ -10,7 +10,7 @@ import org.springframework.data.mongodb.core.mapping.DocumentReference;
 import java.util.List;
 @Getter
 @Setter
-@Document(collection = "person") // Définit la collection MongoDB
+@Document(collection = "person")
 public class Person {
     @Id
     private String id;
@@ -28,11 +28,11 @@ public class Person {
     private String portfolioUrl;
     private String summary;
 
+    private List<String> hobbies;
+    private List<String> languages;
 
     private List<WorkExperience> workExperiences;
     private List<Education> educations;
     private List<Project> projects;
 
-    @DocumentReference
-    private List<Skill> skills;
 }
