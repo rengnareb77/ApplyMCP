@@ -22,7 +22,7 @@ RUN mvn dependency:go-offline
 
 COPY src ./src
 # Correction du chemin : le build du frontend se trouve dans /app/frontend/dist
-COPY --from=frontend_builder /app/frontend/dist ./src/main/resources/static
+COPY --from=frontend_builder /app/src/main/resources/static ./src/main/resources/static
 
 RUN mvn package -DskipTests
 
