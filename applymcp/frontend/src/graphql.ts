@@ -1,6 +1,16 @@
+import { gql } from "@apollo/client"
+
 // Requêtes GraphQL
 
-export const GET_PERSON = `
+export const GET_FIRST_PROFILE = gql`
+  query GetFirstProfile {
+    getFirstProfile {
+      id
+    }
+  }
+`
+
+export const GET_PERSON = gql`
   query GetPerson($id: ID!) {
     getPerson(id: $id) {
       id
@@ -52,9 +62,9 @@ export const GET_PERSON = `
       }
     }
   }
-`;
+`
 
-export const UPDATE_PERSON = `
+export const UPDATE_PERSON = gql`
   mutation UpdatePerson($id: ID!, $input: PersonInput!) {
     updatePerson(id: $id, input: $input) {
       id
@@ -72,10 +82,9 @@ export const UPDATE_PERSON = `
       languages
     }
   }
-`;
+`
 
-
-export const ADD_WORK_EXPERIENCE = `
+export const ADD_WORK_EXPERIENCE = gql`
   mutation AddWorkExperience($profileId: ID!, $input: WorkExperienceInput!) {
     addWorkExperience(profileId: $profileId, input: $input) {
       id
@@ -95,10 +104,14 @@ export const ADD_WORK_EXPERIENCE = `
       }
     }
   }
-`;
+`
 
-export const UPDATE_WORK_EXPERIENCE = `
-  mutation UpdateWorkExperience($profileId: ID!, $index: Int!, $input: WorkExperienceInput!) {
+export const UPDATE_WORK_EXPERIENCE = gql`
+  mutation UpdateWorkExperience(
+    $profileId: ID!
+    $index: Int!
+    $input: WorkExperienceInput!
+  ) {
     updateWorkExperience(profileId: $profileId, index: $index, input: $input) {
       id
       workExperiences {
@@ -117,9 +130,9 @@ export const UPDATE_WORK_EXPERIENCE = `
       }
     }
   }
-`;
+`
 
-export const REMOVE_WORK_EXPERIENCE = `
+export const REMOVE_WORK_EXPERIENCE = gql`
   mutation RemoveWorkExperience($profileId: ID!, $index: Int!) {
     removeWorkExperience(profileId: $profileId, index: $index) {
       id
@@ -139,9 +152,9 @@ export const REMOVE_WORK_EXPERIENCE = `
       }
     }
   }
-`;
+`
 
-export const ADD_EDUCATION = `
+export const ADD_EDUCATION = gql`
   mutation AddEducation($profileId: ID!, $input: EducationInput!) {
     addEducation(profileId: $profileId, input: $input) {
       id
@@ -155,10 +168,14 @@ export const ADD_EDUCATION = `
       }
     }
   }
-`;
+`
 
-export const UPDATE_EDUCATION = `
-  mutation UpdateEducation($profileId: ID!, $index: Int!, $input: EducationInput!) {
+export const UPDATE_EDUCATION = gql`
+  mutation UpdateEducation(
+    $profileId: ID!
+    $index: Int!
+    $input: EducationInput!
+  ) {
     updateEducation(profileId: $profileId, index: $index, input: $input) {
       id
       educations {
@@ -171,9 +188,9 @@ export const UPDATE_EDUCATION = `
       }
     }
   }
-`;
+`
 
-export const REMOVE_EDUCATION = `
+export const REMOVE_EDUCATION = gql`
   mutation RemoveEducation($profileId: ID!, $index: Int!) {
     removeEducation(profileId: $profileId, index: $index) {
       id
@@ -187,9 +204,9 @@ export const REMOVE_EDUCATION = `
       }
     }
   }
-`;
+`
 
-export const ADD_PROJECT = `
+export const ADD_PROJECT = gql`
   mutation AddProject($profileId: ID!, $input: ProjectInput!) {
     addProject(profileId: $profileId, input: $input) {
       id
@@ -206,9 +223,9 @@ export const ADD_PROJECT = `
       }
     }
   }
-`;
+`
 
-export const UPDATE_PROJECT = `
+export const UPDATE_PROJECT = gql`
   mutation UpdateProject($profileId: ID!, $index: Int!, $input: ProjectInput!) {
     updateProject(profileId: $profileId, index: $index, input: $input) {
       id
@@ -225,9 +242,9 @@ export const UPDATE_PROJECT = `
       }
     }
   }
-`;
+`
 
-export const REMOVE_PROJECT = `
+export const REMOVE_PROJECT = gql`
   mutation RemoveProject($profileId: ID!, $index: Int!) {
     removeProject(profileId: $profileId, index: $index) {
       id
@@ -244,4 +261,4 @@ export const REMOVE_PROJECT = `
       }
     }
   }
-`;
+`

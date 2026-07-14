@@ -1,490 +1,608 @@
-import { useState, useEffect } from 'react';
-import { ADD_PROJECT, REMOVE_PROJECT, UPDATE_PROJECT, GET_PERSON } from '../graphql';
-import { graphqlQuery } from '../apollo-client';
+import { useState } from "react"
+import { useQuery, useMutation } from "@apollo/client/react"
+import {
+  ADD_PROJECT,
+  REMOVE_PROJECT,
+  UPDATE_PROJECT,
+  GET_PERSON,
+} from "../graphql"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import {
+  AlertCircle,
+  Plus,
+  X,
+  Globe,
+  Code2,
+  FolderGit2,
+  Pencil,
+  Trash2,
+} from "lucide-react"
+import { toast } from "sonner"
 
 interface ProjectsPageProps {
-  profileId: string;
-  onProjectUpdate?: () => void;
+  profileId: string
 }
 
 interface ProjectForm {
-  title: string;
-  description: string;
-  year: string;
-  repositoryUrl: string;
-  liveDemoUrl: string;
+  title: string
+  description: string
+  year: string
+  repositoryUrl: string
+  liveDemoUrl: string
 }
 
 interface SkillGroup {
-  type: string;
-  names: string;
+  type: string
+  names: string
 }
 
-export default function ProjectsPage({ profileId, onProjectUpdate }: ProjectsPageProps) {
-  const [projects, setProjects] = useState<any[]>([]);
-  const [formData, setFormData] = useState<ProjectForm>({
-    title: '',
-    description: '',
-    year: '',
-    repositoryUrl: '',
-    liveDemoUrl: '',
-  });
-  const [skillGroups, setSkillGroups] = useState<SkillGroup[]>([{ type: '', names: '' }]);
-  const [editIndex, setEditIndex] = useState<number | null>(null);
-  const [editFormData, setEditFormData] = useState<ProjectForm>({
-    title: '',
-    description: '',
-    year: '',
-    repositoryUrl: '',
-    liveDemoUrl: '',
-  });
-  const [editSkillGroups, setEditSkillGroups] = useState<SkillGroup[]>([{ type: '', names: '' }]);
-  const [editLoading, setEditLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [addLoading, setAddLoading] = useState(false);
-  const [removeLoading, setRemoveLoading] = useState(false);
+const emptyForm = {
+  title: "",
+  description: "",
+  year: "",
+  repositoryUrl: "",
+  liveDemoUrl: "",
+}
 
-  useEffect(() => {
-    loadProjects();
-  }, [profileId]);
+export default function ProjectsPage({ profileId }: ProjectsPageProps) {
+  const {
+    data,
+    loading: queryLoading,
+    error: queryError,
+  } = useQuery<any>(GET_PERSON, {
+    variables: { id: profileId },
+  })
+
+  const [addProject, { loading: addLoading, error: addError }] = useMutation(
+    ADD_PROJECT,
+    {
+      refetchQueries: [{ query: GET_PERSON, variables: { id: profileId } }],
+    }
+  )
+
+  const [updateProject, { loading: editLoading, error: editError }] =
+    useMutation(UPDATE_PROJECT, {
+      refetchQueries: [{ query: GET_PERSON, variables: { id: profileId } }],
+    })
+
+  const [removeProject, { error: removeError }] = useMutation(REMOVE_PROJECT, {
+    refetchQueries: [{ query: GET_PERSON, variables: { id: profileId } }],
+  })
+
+  const projects = data?.getPerson?.projects || []
+
+  // Modals state
+  const [isAddOpen, setIsAddOpen] = useState(false)
+  const [isEditOpen, setIsEditOpen] = useState(false)
+
+  const [formData, setFormData] = useState<ProjectForm>(emptyForm)
+  const [skillGroups, setSkillGroups] = useState<SkillGroup[]>([
+    { type: "", names: "" },
+  ])
+
+  const [editIndex, setEditIndex] = useState<number | null>(null)
+  const [editFormData, setEditFormData] = useState<ProjectForm>(emptyForm)
+  const [editSkillGroups, setEditSkillGroups] = useState<SkillGroup[]>([
+    { type: "", names: "" },
+  ])
 
   const parseSkillGroups = (groups: SkillGroup[]) => {
-    const skills: { type: string; name: string }[] = [];
-    groups.forEach(group => {
-      const skillNames = group.names.split(',').map(name => name.trim()).filter(Boolean);
-      skillNames.forEach(name => {
-        skills.push({ type: group.type, name });
-      });
-    });
-    return skills;
-  };
+    const skills: { type: string; name: string }[] = []
+    groups.forEach((group) => {
+      const skillNames = group.names
+        .split(",")
+        .map((name) => name.trim())
+        .filter(Boolean)
+      skillNames.forEach((name) => {
+        skills.push({ type: group.type, name })
+      })
+    })
+    return skills
+  }
 
-  const loadProjects = async () => {
-    try {
-      const data = await graphqlQuery(GET_PERSON, { id: profileId });
-      setProjects(data.getPerson.projects || []);
-    } catch (err: any) {
-      setError(err.message || 'Erreur lors du chargement');
-    }
-  };
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value } = e.target
+    setFormData((prev) => ({ ...prev, [name]: value }))
+  }
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
+  const handleEditInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value } = e.target
+    setEditFormData((prev) => ({ ...prev, [name]: value }))
+  }
 
-  const handleEditInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setEditFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
+  const handleSkillGroupChange = (
+    index: number,
+    field: "type" | "names",
+    value: string
+  ) => {
+    const newSkillGroups = [...skillGroups]
+    newSkillGroups[index][field] = value
+    setSkillGroups(newSkillGroups)
+  }
 
-  const handleSkillGroupChange = (index: number, field: 'type' | 'names', value: string) => {
-    const newSkillGroups = [...skillGroups];
-    newSkillGroups[index][field] = value;
-    setSkillGroups(newSkillGroups);
-  };
+  const addSkillGroup = () =>
+    setSkillGroups([...skillGroups, { type: "", names: "" }])
+  const removeSkillGroup = (index: number) =>
+    setSkillGroups(skillGroups.filter((_, i) => i !== index))
 
-  const addSkillGroup = () => {
-    setSkillGroups([...skillGroups, { type: '', names: '' }]);
-  };
+  const handleEditSkillGroupChange = (
+    index: number,
+    field: "type" | "names",
+    value: string
+  ) => {
+    const newSkillGroups = [...editSkillGroups]
+    newSkillGroups[index][field] = value
+    setEditSkillGroups(newSkillGroups)
+  }
 
-  const removeSkillGroup = (index: number) => {
-    const newSkillGroups = skillGroups.filter((_, i) => i !== index);
-    setSkillGroups(newSkillGroups);
-  };
-
-  const handleEditSkillGroupChange = (index: number, field: 'type' | 'names', value: string) => {
-    const newSkillGroups = [...editSkillGroups];
-    newSkillGroups[index][field] = value;
-    setEditSkillGroups(newSkillGroups);
-  };
-
-  const addEditSkillGroup = () => {
-    setEditSkillGroups([...editSkillGroups, { type: '', names: '' }]);
-  };
-
-  const removeEditSkillGroup = (index: number) => {
-    const newSkillGroups = editSkillGroups.filter((_, i) => i !== index);
-    setEditSkillGroups(newSkillGroups);
-  };
+  const addEditSkillGroup = () =>
+    setEditSkillGroups([...editSkillGroups, { type: "", names: "" }])
+  const removeEditSkillGroup = (index: number) =>
+    setEditSkillGroups(editSkillGroups.filter((_, i) => i !== index))
 
   const startEdit = (index: number) => {
-    const p = projects[index] || {};
-    setEditIndex(index);
+    const p = projects[index] || {}
+    setEditIndex(index)
     setEditFormData({
-      title: p.title || '',
-      description: p.description || '',
-      year: p.year || '',
-      repositoryUrl: p.repositoryUrl || '',
-      liveDemoUrl: p.liveDemoUrl || '',
-    });
+      title: p.title || "",
+      description: p.description || "",
+      year: p.year || "",
+      repositoryUrl: p.repositoryUrl || "",
+      liveDemoUrl: p.liveDemoUrl || "",
+    })
 
-    const groupedSkills = (p.skills || []).reduce((acc: Record<string, string[]>, skill: { type: string, name: string }) => {
-      if (!acc[skill.type]) {
-        acc[skill.type] = [];
-      }
-      acc[skill.type].push(skill.name);
-      return acc;
-    }, {});
+    const groupedSkills = (p.skills || []).reduce(
+      (
+        acc: Record<string, string[]>,
+        skill: { type: string; name: string }
+      ) => {
+        if (!acc[skill.type]) acc[skill.type] = []
+        acc[skill.type].push(skill.name)
+        return acc
+      },
+      {}
+    )
 
-    const skillGroups = Object.entries(groupedSkills).map(([type, names]) => ({
+    const groups = Object.entries(groupedSkills).map(([type, names]) => ({
       type,
-      names: (names as any).join(', '),
-    }));
+      names: (names as any).join(", "),
+    }))
 
-    setEditSkillGroups(skillGroups.length > 0 ? skillGroups : [{ type: '', names: '' }]);
-    setError('');
-  };
-
-  const cancelEdit = () => {
-    setEditIndex(null);
-    setEditLoading(false);
-    setError('');
-  };
+    setEditSkillGroups(groups.length > 0 ? groups : [{ type: "", names: "" }])
+    setIsEditOpen(true)
+  }
 
   const handleAddProject = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setAddLoading(true);
+    e.preventDefault()
     try {
       const projectInput = {
         ...formData,
         skills: parseSkillGroups(skillGroups),
-      };
-      await graphqlQuery(ADD_PROJECT, {
-        profileId,
-        input: projectInput,
-      });
-      setFormData({
-        title: '',
-        description: '',
-        year: '',
-        repositoryUrl: '',
-        liveDemoUrl: '',
-      });
-      setSkillGroups([{ type: '', names: '' }]);
-      setError('');
-      await loadProjects();
-      onProjectUpdate?.();
-      alert('Projet ajouté avec succès!');
+      }
+      await addProject({
+        variables: { profileId, input: projectInput },
+      })
+      setFormData(emptyForm)
+      setSkillGroups([{ type: "", names: "" }])
+      setIsAddOpen(false)
+      toast.success("Projet ajouté avec succès !")
     } catch (err: any) {
-      setError(err.message || 'Erreur lors de l\'ajout');
-    } finally {
-      setAddLoading(false);
+      // Handled by addError
     }
-  };
+  }
 
-  const handleUpdateProject = async (index: number) => {
-    setEditLoading(true);
+  const handleUpdateProject = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (editIndex === null) return
     try {
       const projectInput = {
         ...editFormData,
         skills: parseSkillGroups(editSkillGroups),
-      };
-      await graphqlQuery(UPDATE_PROJECT, {
-        profileId,
-        index,
-        input: projectInput,
-      });
-      setError('');
-      await loadProjects();
-      onProjectUpdate?.();
-      setEditIndex(null);
-      alert('Projet modifié avec succès!');
+      }
+      await updateProject({
+        variables: { profileId, index: editIndex, input: projectInput },
+      })
+      setIsEditOpen(false)
+      setEditIndex(null)
+      toast.success("Projet modifié avec succès !")
     } catch (err: any) {
-      setError(err.message || 'Erreur lors de la modification');
-    } finally {
-      setEditLoading(false);
+      // Handled by editError
     }
-  };
+  }
 
   const handleRemoveProject = async (index: number) => {
-    if (window.confirm('Êtes-vous sûr de vouloir supprimer ce projet?')) {
-      setRemoveLoading(true);
-      try {
-        await graphqlQuery(REMOVE_PROJECT, {
-          profileId,
-          index,
-        });
-        await loadProjects();
-        onProjectUpdate?.();
-        alert('Projet supprimé avec succès!');
-      } catch (err: any) {
-        setError(err.message || 'Erreur lors de la suppression');
-      } finally {
-        setRemoveLoading(false);
-      }
+    try {
+      await removeProject({
+        variables: { profileId, index },
+      })
+      toast.success("Projet supprimé avec succès !")
+    } catch (err: any) {
+      // Handled by removeError
     }
-  };
+  }
+
+  if (queryLoading) {
+    return (
+      <div className="p-6 text-muted-foreground">Chargement des projets...</div>
+    )
+  }
+
+  const error =
+    queryError?.message ||
+    addError?.message ||
+    editError?.message ||
+    removeError?.message
+
+  // Formulaire réutilisable
+  const renderForm = (
+    isEdit: boolean,
+    data: ProjectForm,
+    handleDataChange: typeof handleInputChange,
+    groups: SkillGroup[],
+    handleGroupChange: typeof handleSkillGroupChange,
+    addGroup: () => void,
+    removeGroup: (idx: number) => void,
+    onSubmit: (e: React.FormEvent) => void,
+    loading: boolean
+  ) => (
+    <form
+      onSubmit={onSubmit}
+      className="max-h-[70vh] space-y-4 overflow-y-auto px-1 pt-4"
+    >
+      <div className="space-y-2">
+        <Label>Titre du projet *</Label>
+        <Input
+          name="title"
+          value={data.title}
+          onChange={handleDataChange}
+          required
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label>Description</Label>
+        <Textarea
+          name="description"
+          value={data.description}
+          onChange={handleDataChange}
+          placeholder="Rôle, contexte, fonctionnalités..."
+          rows={4}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label>Année</Label>
+        <Input
+          name="year"
+          value={data.year}
+          onChange={handleDataChange}
+          placeholder="ex: 2024"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label>URL du code (Repository)</Label>
+          <Input
+            type="url"
+            name="repositoryUrl"
+            value={data.repositoryUrl}
+            onChange={handleDataChange}
+            placeholder="https://github.com/..."
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>URL de la démo (Live)</Label>
+          <Input
+            type="url"
+            name="liveDemoUrl"
+            value={data.liveDemoUrl}
+            onChange={handleDataChange}
+            placeholder="https://..."
+          />
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <Label>Technologies et Compétences</Label>
+        {groups.map((group, index) => (
+          <div key={index} className="flex items-center gap-2">
+            <Input
+              value={group.type}
+              onChange={(e) => handleGroupChange(index, "type", e.target.value)}
+              placeholder="Type (ex: Backend)"
+              className="w-1/3"
+            />
+            <Input
+              value={group.names}
+              onChange={(e) =>
+                handleGroupChange(index, "names", e.target.value)
+              }
+              placeholder="Technos (séparées par une virgule)"
+              className="flex-1"
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => removeGroup(index)}
+            >
+              <X className="size-4 text-destructive" />
+            </Button>
+          </div>
+        ))}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={addGroup}
+          className="w-full border-dashed"
+        >
+          <Plus className="mr-2 size-4" />
+          Ajouter un groupe de technologies
+        </Button>
+      </div>
+
+      <div className="flex justify-end pt-4">
+        <Button type="submit" disabled={loading} className="w-full sm:w-auto">
+          {loading
+            ? "Enregistrement..."
+            : isEdit
+              ? "Mettre à jour"
+              : "Ajouter le projet"}
+        </Button>
+      </div>
+    </form>
+  )
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
-      <h1 className="text-3xl font-bold mb-6">Gérer mes projets</h1>
+    <div className="mx-auto max-w-6xl p-6">
+      <div className="mb-8 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+        <div>
+          <h1 className="flex items-center gap-2 text-3xl font-bold">
+            <FolderGit2 className="size-8 text-primary" />
+            Mon portfolio
+          </h1>
+          <p className="mt-1 text-muted-foreground">
+            Mettez en valeur vos réalisations et projets personnels.
+          </p>
+        </div>
 
-      {/* Liste des projets */}
-      <div className="mb-8">
-        <h2 className="text-xl font-semibold mb-4">Mes projets ({projects.length})</h2>
-        {projects.length === 0 ? (
-          <p className="text-gray-500">Aucun projet pour le moment.</p>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {projects.map((project, index) => (
-              <div key={index} className="bg-white rounded-lg shadow-md p-4 border-l-4 border-purple-600">
-                <div className="flex justify-between items-start mb-2 gap-2">
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold">{project.title}</h3>
+        {/* Modal d'ajout */}
+        <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+          <DialogTrigger render={<Button className="gap-2" />}>
+            <Plus className="size-4" />
+            Ajouter un projet
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Ajouter un projet</DialogTitle>
+            </DialogHeader>
+            {renderForm(
+              false,
+              formData,
+              handleInputChange,
+              skillGroups,
+              handleSkillGroupChange,
+              addSkillGroup,
+              removeSkillGroup,
+              handleAddProject,
+              addLoading
+            )}
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {error && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertCircle className="size-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {/* Modal d'édition */}
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Modifier le projet</DialogTitle>
+          </DialogHeader>
+          {renderForm(
+            true,
+            editFormData,
+            handleEditInputChange,
+            editSkillGroups,
+            handleEditSkillGroupChange,
+            addEditSkillGroup,
+            removeEditSkillGroup,
+            handleUpdateProject,
+            editLoading
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Grille des projets */}
+      {projects.length === 0 ? (
+        <div className="rounded-lg border border-dashed bg-muted/30 py-12 text-center">
+          <FolderGit2 className="mx-auto mb-3 size-12 text-muted-foreground/50" />
+          <h3 className="text-lg font-medium">Aucun projet</h3>
+          <p className="mt-1 text-muted-foreground">
+            Vous n'avez pas encore ajouté de projet à votre portfolio.
+          </p>
+          <Button
+            variant="outline"
+            className="mt-4"
+            onClick={() => setIsAddOpen(true)}
+          >
+            Commencer à remplir
+          </Button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {projects.map((project: any, index: number) => (
+            <div
+              key={index}
+              className="group flex h-full flex-col overflow-hidden rounded-xl border bg-card shadow-sm transition-all hover:shadow-md"
+            >
+              {/* Header Card */}
+              <div className="relative border-b bg-muted/20 p-5">
+                <div className="flex items-start justify-between">
+                  <div className="pr-12">
+                    <h3 className="mb-1 text-xl leading-tight font-bold text-foreground">
+                      {project.title}
+                    </h3>
                     {project.year && (
-                      <div className="text-sm text-gray-600">{project.year}</div>
+                      <Badge
+                        variant="outline"
+                        className="bg-background text-xs font-normal"
+                      >
+                        {project.year}
+                      </Badge>
                     )}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button
+
+                  {/* Actions (absolues pour ne pas décaler le titre, opacité 0 par défaut) */}
+                  <div className="absolute top-4 right-4 flex gap-1 rounded-md bg-background/80 p-0.5 opacity-0 shadow-sm backdrop-blur-sm transition-opacity group-hover:opacity-100">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-7 h-7 w-7"
                       onClick={() => startEdit(index)}
-                      disabled={removeLoading || addLoading || editLoading}
-                      className="px-3 py-1 bg-gray-800 text-white rounded hover:bg-gray-900 disabled:bg-gray-400 text-sm"
                     >
-                      Éditer
-                    </button>
-                    <button
-                      onClick={() => handleRemoveProject(index)}
-                      disabled={removeLoading || editLoading}
-                      className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 disabled:bg-gray-400 text-sm"
-                    >
-                      Supprimer
-                    </button>
+                      <Pencil className="size-3.5" />
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger
+                        render={
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            className="hover:text-destructive-foreground text-destructive transition-colors hover:bg-destructive"
+                          />
+                        }
+                      >
+                        <Trash2 className="size-4" />
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>
+                            Supprimer ce projet ?
+                          </AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Cette action est irréversible. Le projet{" "}
+                            <strong>{project.title}</strong> sera définitivement
+                            effacé.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Annuler</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleRemoveProject(index)}
+                            className="text-destructive-foreground bg-destructive hover:bg-destructive/90"
+                          >
+                            Supprimer
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 </div>
+              </div>
 
-                {editIndex === index ? (
-                  <div className="mt-3">
-                    <input
-                      type="text"
-                      name="title"
-                      value={editFormData.title}
-                      onChange={handleEditInputChange}
-                      placeholder="Titre du projet *"
-                      required
-                      className="w-full px-3 py-2 border rounded mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <textarea
-                      name="description"
-                      value={editFormData.description}
-                      onChange={handleEditInputChange}
-                      placeholder="Description du projet"
-                      rows={3}
-                      className="w-full px-3 py-2 border rounded mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <input
-                      type="text"
-                      name="year"
-                      value={editFormData.year}
-                      onChange={handleEditInputChange}
-                      placeholder="Année (ex: 2025)"
-                      className="w-full px-3 py-2 border rounded mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <input
-                      type="url"
-                      name="repositoryUrl"
-                      value={editFormData.repositoryUrl}
-                      onChange={handleEditInputChange}
-                      placeholder="URL du repository GitHub/GitLab"
-                      className="w-full px-3 py-2 border rounded mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <input
-                      type="url"
-                      name="liveDemoUrl"
-                      value={editFormData.liveDemoUrl}
-                      onChange={handleEditInputChange}
-                      placeholder="URL de la démo en ligne"
-                      className="w-full px-3 py-2 border rounded mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <div className="space-y-2">
-                      {editSkillGroups.map((group, i) => (
-                        <div key={i} className="flex items-center gap-2">
-                          <input
-                            type="text"
-                            value={group.type}
-                            onChange={(e) => handleEditSkillGroupChange(i, 'type', e.target.value)}
-                            placeholder="Type (ex: Frontend)"
-                            className="px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                          <input
-                            type="text"
-                            value={group.names}
-                            onChange={(e) => handleEditSkillGroupChange(i, 'names', e.target.value)}
-                            placeholder="Compétences (ex: React, NextJs)"
-                            className="flex-1 px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                          <button type="button" onClick={() => removeEditSkillGroup(i)} className="text-red-500">X</button>
-                        </div>
-                      ))}
-                      <button type="button" onClick={addEditSkillGroup} className="text-blue-500">+ Ajouter un groupe</button>
-                    </div>
-                    <div className="flex items-center gap-2 mt-4">
-                      <button
-                        type="button"
-                        onClick={() => handleUpdateProject(index)}
-                        disabled={editLoading}
-                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400"
-                      >
-                        {editLoading ? 'Enregistrement...' : 'Enregistrer'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={cancelEdit}
-                        disabled={editLoading}
-                        className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 disabled:bg-gray-100"
-                      >
-                        Annuler
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    {project.description && (
-                      <p className="text-gray-700 mb-3">{project.description}</p>
-                    )}
-                  </>
+              {/* Body Card */}
+              <div className="flex flex-1 flex-col p-5">
+                {project.description && (
+                  <p className="mb-4 flex-1 text-sm leading-relaxed whitespace-pre-line text-foreground/90">
+                    {project.description}
+                  </p>
                 )}
 
                 {Array.isArray(project.skills) && project.skills.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mb-3">
+                  <div className="mt-auto mb-5 flex flex-wrap gap-1.5">
                     {project.skills.map((skill: any, skillIndex: number) => (
-                      <span
-                        key={`${skill?.type || 'Autre'}-${skill?.name || 'skill'}-${skillIndex}`}
-                        className="inline-flex items-center px-2 py-0.5 rounded border bg-gray-50 text-gray-700 text-xs"
+                      <Badge
+                        key={`${skill?.type || "Autre"}-${skill?.name || "skill"}-${skillIndex}`}
+                        variant="secondary"
+                        className="px-1.5 py-0 text-[10px] font-normal"
                       >
-                        {skill?.type ? `${skill.type} · ` : ''}{skill?.name}
-                      </span>
+                        {skill?.name}
+                      </Badge>
                     ))}
                   </div>
                 )}
 
-                <div className="space-y-2">
-                  {project.repositoryUrl && (
-                    <div>
-                      <a
-                        href={project.repositoryUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline text-sm flex items-center"
+                {/* Footer Links */}
+                {(project.repositoryUrl || project.liveDemoUrl) && (
+                  <div className="mt-auto flex gap-2 border-t pt-4">
+                    {project.repositoryUrl && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-9 flex-1 text-xs"
+                        render={
+                          <a
+                            href={project.repositoryUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-center gap-2"
+                          />
+                        }
                       >
-                        📦 Repository
-                      </a>
-                    </div>
-                  )}
-                  {project.liveDemoUrl && (
-                    <div>
-                      <a
-                        href={project.liveDemoUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline text-sm flex items-center"
+                        <Code2 className="size-4" />
+                        <span>Code</span>
+                      </Button>
+                    )}
+                    {project.liveDemoUrl && (
+                      <Button
+                        variant="default"
+                        size="sm"
+                        className="h-9 flex-1 text-xs"
+                        render={
+                          <a
+                            href={project.liveDemoUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-center gap-2"
+                          />
+                        }
                       >
-                        🌐 Démo en ligne
-                      </a>
-                    </div>
-                  )}
-                </div>
+                        <Globe className="size-4" />
+                        <span>Site Web</span>
+                      </Button>
+                    )}
+                  </div>
+                )}
               </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Formulaire d'ajout */}
-      <form onSubmit={handleAddProject} className="bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-xl font-semibold mb-4">Ajouter un projet</h2>
-
-        {error && (
-          <div className="mb-4 p-3 bg-red-100 text-red-700 rounded">
-            {error}
-          </div>
-        )}
-
-        <input
-          type="text"
-          name="title"
-          value={formData.title}
-          onChange={handleInputChange}
-          placeholder="Titre du projet *"
-          required
-          className="w-full px-3 py-2 border rounded mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-
-        <textarea
-          name="description"
-          value={formData.description}
-          onChange={handleInputChange}
-          placeholder="Description du projet"
-          rows={4}
-          className="w-full px-3 py-2 border rounded mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-
-        <input
-          type="text"
-          name="year"
-          value={formData.year}
-          onChange={handleInputChange}
-          placeholder="Année (ex: 2025)"
-          className="w-full px-3 py-2 border rounded mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-
-        <input
-          type="url"
-          name="repositoryUrl"
-          value={formData.repositoryUrl}
-          onChange={handleInputChange}
-          placeholder="URL du repository GitHub/GitLab"
-          className="w-full px-3 py-2 border rounded mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-
-        <input
-          type="url"
-          name="liveDemoUrl"
-          value={formData.liveDemoUrl}
-          onChange={handleInputChange}
-          placeholder="URL de la démo en ligne"
-          className="w-full px-3 py-2 border rounded mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-
-        <div className="space-y-2 mb-4">
-          <h3 className="text-lg font-semibold">Compétences</h3>
-          {skillGroups.map((group, index) => (
-            <div key={index} className="flex items-center gap-2">
-              <input
-                type="text"
-                value={group.type}
-                onChange={(e) => handleSkillGroupChange(index, 'type', e.target.value)}
-                placeholder="Type (ex: Frontend)"
-                className="px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <input
-                type="text"
-                value={group.names}
-                onChange={(e) => handleSkillGroupChange(index, 'names', e.target.value)}
-                placeholder="Compétences (ex: React, NextJs)"
-                className="flex-1 px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <button type="button" onClick={() => removeSkillGroup(index)} className="text-red-500">X</button>
             </div>
           ))}
-          <button type="button" onClick={addSkillGroup} className="text-blue-500">+ Ajouter un groupe</button>
         </div>
-
-        <button
-          type="submit"
-          disabled={addLoading}
-          className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-400"
-        >
-          {addLoading ? 'Ajout en cours...' : 'Ajouter le projet'}
-        </button>
-      </form>
+      )}
     </div>
-  );
+  )
 }

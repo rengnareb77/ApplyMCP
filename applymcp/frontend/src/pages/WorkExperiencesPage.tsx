@@ -1,560 +1,656 @@
-import { useState, useEffect } from 'react';
-import { ADD_WORK_EXPERIENCE, REMOVE_WORK_EXPERIENCE, UPDATE_WORK_EXPERIENCE, GET_PERSON } from '../graphql';
-import { graphqlQuery } from '../apollo-client';
+import { useState } from "react"
+import { useQuery, useMutation } from "@apollo/client/react"
+import {
+  ADD_WORK_EXPERIENCE,
+  REMOVE_WORK_EXPERIENCE,
+  UPDATE_WORK_EXPERIENCE,
+  GET_PERSON,
+} from "../graphql"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import {
+  AlertCircle,
+  Plus,
+  X,
+  MapPin,
+  Calendar,
+  Briefcase,
+  Pencil,
+  Trash2,
+} from "lucide-react"
+import { toast } from "sonner"
 
 interface WorkExperiencesPageProps {
-  profileId: string;
-  onExperienceUpdate?: () => void;
+  profileId: string
 }
 
 interface WorkExperienceForm {
-  company: string;
-  role: string;
-  startDate: string;
-  endDate: string;
-  location: string;
-  contractType: string;
-  description: string;
-  achievement: string;
+  company: string
+  role: string
+  startDate: string
+  endDate: string
+  location: string
+  contractType: string
+  description: string
+  achievement: string
 }
 
 interface SkillGroup {
-  type: string;
-  names: string;
+  type: string
+  names: string
 }
 
-export default function WorkExperiencesPage({ profileId, onExperienceUpdate }: WorkExperiencesPageProps) {
-  const [workExperiences, setWorkExperiences] = useState<any[]>([]);
-  const [formData, setFormData] = useState<WorkExperienceForm>({
-    company: '',
-    role: '',
-    startDate: '',
-    endDate: '',
-    location: '',
-    contractType: '',
-    description: '',
-    achievement: '',
-  });
-  const [skillGroups, setSkillGroups] = useState<SkillGroup[]>([{ type: '', names: '' }]);
-  const [editIndex, setEditIndex] = useState<number | null>(null);
-  const [editFormData, setEditFormData] = useState<WorkExperienceForm>({
-    company: '',
-    role: '',
-    startDate: '',
-    endDate: '',
-    location: '',
-    contractType: '',
-    description: '',
-    achievement: '',
-  });
-  const [editSkillGroups, setEditSkillGroups] = useState<SkillGroup[]>([{ type: '', names: '' }]);
-  const [editLoading, setEditLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [addLoading, setAddLoading] = useState(false);
-  const [removeLoading, setRemoveLoading] = useState(false);
+const CONTRACT_TYPES = ["CDI", "CDD", "Stage", "Freelance", "Alternance"]
 
-  useEffect(() => {
-    loadExperiences();
-  }, [profileId]);
+const emptyForm = {
+  company: "",
+  role: "",
+  startDate: "",
+  endDate: "",
+  location: "",
+  contractType: "",
+  description: "",
+  achievement: "",
+}
+
+export default function WorkExperiencesPage({
+  profileId,
+}: WorkExperiencesPageProps) {
+  const {
+    data,
+    loading: queryLoading,
+    error: queryError,
+  } = useQuery<any>(GET_PERSON, {
+    variables: { id: profileId },
+  })
+
+  const [addWorkExperience, { loading: addLoading, error: addError }] =
+    useMutation(ADD_WORK_EXPERIENCE, {
+      refetchQueries: [{ query: GET_PERSON, variables: { id: profileId } }],
+    })
+
+  const [updateWorkExperience, { loading: editLoading, error: editError }] =
+    useMutation(UPDATE_WORK_EXPERIENCE, {
+      refetchQueries: [{ query: GET_PERSON, variables: { id: profileId } }],
+    })
+
+  const [removeWorkExperience, { error: removeError }] = useMutation(
+    REMOVE_WORK_EXPERIENCE,
+    {
+      refetchQueries: [{ query: GET_PERSON, variables: { id: profileId } }],
+    }
+  )
+
+  const workExperiences = data?.getPerson?.workExperiences || []
+
+  // Modals state
+  const [isAddOpen, setIsAddOpen] = useState(false)
+  const [isEditOpen, setIsEditOpen] = useState(false)
+
+  const [formData, setFormData] = useState<WorkExperienceForm>(emptyForm)
+  const [skillGroups, setSkillGroups] = useState<SkillGroup[]>([
+    { type: "", names: "" },
+  ])
+
+  const [editIndex, setEditIndex] = useState<number | null>(null)
+  const [editFormData, setEditFormData] =
+    useState<WorkExperienceForm>(emptyForm)
+  const [editSkillGroups, setEditSkillGroups] = useState<SkillGroup[]>([
+    { type: "", names: "" },
+  ])
 
   const parseSkillGroups = (groups: SkillGroup[]) => {
-    const skills: { type: string; name: string }[] = [];
-    groups.forEach(group => {
-      const skillNames = group.names.split(',').map(name => name.trim()).filter(Boolean);
-      skillNames.forEach(name => {
-        skills.push({ type: group.type, name });
-      });
-    });
-    return skills;
-  };
+    const skills: { type: string; name: string }[] = []
+    groups.forEach((group) => {
+      const skillNames = group.names
+        .split(",")
+        .map((name) => name.trim())
+        .filter(Boolean)
+      skillNames.forEach((name) => {
+        skills.push({ type: group.type, name })
+      })
+    })
+    return skills
+  }
 
-  const loadExperiences = async () => {
-    try {
-      const data = await graphqlQuery(GET_PERSON, { id: profileId });
-      setWorkExperiences(data.getPerson.workExperiences || []);
-    } catch (err: any) {
-      setError(err.message || 'Erreur lors du chargement');
-    }
-  };
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value } = e.target
+    setFormData((prev) => ({ ...prev, [name]: value }))
+  }
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
+  const handleEditInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value } = e.target
+    setEditFormData((prev) => ({ ...prev, [name]: value }))
+  }
 
-  const handleEditInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setEditFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
+  const handleSkillGroupChange = (
+    index: number,
+    field: "type" | "names",
+    value: string
+  ) => {
+    const newSkillGroups = [...skillGroups]
+    newSkillGroups[index][field] = value
+    setSkillGroups(newSkillGroups)
+  }
 
-  const handleSkillGroupChange = (index: number, field: 'type' | 'names', value: string) => {
-    const newSkillGroups = [...skillGroups];
-    newSkillGroups[index][field] = value;
-    setSkillGroups(newSkillGroups);
-  };
+  const addSkillGroup = () =>
+    setSkillGroups([...skillGroups, { type: "", names: "" }])
+  const removeSkillGroup = (index: number) =>
+    setSkillGroups(skillGroups.filter((_, i) => i !== index))
 
-  const addSkillGroup = () => {
-    setSkillGroups([...skillGroups, { type: '', names: '' }]);
-  };
+  const handleEditSkillGroupChange = (
+    index: number,
+    field: "type" | "names",
+    value: string
+  ) => {
+    const newSkillGroups = [...editSkillGroups]
+    newSkillGroups[index][field] = value
+    setEditSkillGroups(newSkillGroups)
+  }
 
-  const removeSkillGroup = (index: number) => {
-    const newSkillGroups = skillGroups.filter((_, i) => i !== index);
-    setSkillGroups(newSkillGroups);
-  };
-
-  const handleEditSkillGroupChange = (index: number, field: 'type' | 'names', value: string) => {
-    const newSkillGroups = [...editSkillGroups];
-    newSkillGroups[index][field] = value;
-    setEditSkillGroups(newSkillGroups);
-  };
-
-  const addEditSkillGroup = () => {
-    setEditSkillGroups([...editSkillGroups, { type: '', names: '' }]);
-  };
-
-  const removeEditSkillGroup = (index: number) => {
-    const newSkillGroups = editSkillGroups.filter((_, i) => i !== index);
-    setEditSkillGroups(newSkillGroups);
-  };
+  const addEditSkillGroup = () =>
+    setEditSkillGroups([...editSkillGroups, { type: "", names: "" }])
+  const removeEditSkillGroup = (index: number) =>
+    setEditSkillGroups(editSkillGroups.filter((_, i) => i !== index))
 
   const startEdit = (index: number) => {
-    const e = workExperiences[index] || {};
-    setEditIndex(index);
+    const e = workExperiences[index] || {}
+    setEditIndex(index)
     setEditFormData({
-      company: e.company || '',
-      role: e.role || '',
-      startDate: e.startDate || '',
-      endDate: e.endDate || '',
-      location: e.location || '',
-      contractType: e.contractType || '',
-      description: e.description || '',
-      achievement: e.achievement || '',
-    });
+      company: e.company || "",
+      role: e.role || "",
+      startDate: e.startDate || "",
+      endDate: e.endDate || "",
+      location: e.location || "",
+      contractType: e.contractType || "",
+      description: e.description || "",
+      achievement: e.achievement || "",
+    })
 
-    const groupedSkills = (e.skills || []).reduce((acc: Record<string, string[]>, skill: { type: string, name: string }) => {
-      if (!acc[skill.type]) {
-        acc[skill.type] = [];
-      }
-      acc[skill.type].push(skill.name);
-      return acc;
-    }, {});
+    const groupedSkills = (e.skills || []).reduce(
+      (
+        acc: Record<string, string[]>,
+        skill: { type: string; name: string }
+      ) => {
+        if (!acc[skill.type]) acc[skill.type] = []
+        acc[skill.type].push(skill.name)
+        return acc
+      },
+      {}
+    )
 
-    const skillGroups = Object.entries(groupedSkills).map(([type, names]) => ({
+    const groups = Object.entries(groupedSkills).map(([type, names]) => ({
       type,
-      names: (names as any).join(', '),
-    }));
+      names: (names as any).join(", "),
+    }))
 
-    setEditSkillGroups(skillGroups.length > 0 ? skillGroups : [{ type: '', names: '' }]);
-    setError('');
-  };
-
-  const cancelEdit = () => {
-    setEditIndex(null);
-    setEditLoading(false);
-    setError('');
-  };
+    setEditSkillGroups(groups.length > 0 ? groups : [{ type: "", names: "" }])
+    setIsEditOpen(true)
+  }
 
   const handleAddExperience = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setAddLoading(true);
+    e.preventDefault()
     try {
       const experienceInput = {
         ...formData,
         skills: parseSkillGroups(skillGroups),
-      };
-      await graphqlQuery(ADD_WORK_EXPERIENCE, {
-        profileId,
-        input: experienceInput,
-      });
-      setFormData({
-        company: '',
-        role: '',
-        startDate: '',
-        endDate: '',
-        location: '',
-        contractType: '',
-        description: '',
-        achievement: '',
-      });
-      setSkillGroups([{ type: '', names: '' }]);
-      setError('');
-      await loadExperiences();
-      onExperienceUpdate?.();
-      alert('Expérience ajoutée avec succès!');
+      }
+      await addWorkExperience({
+        variables: { profileId, input: experienceInput },
+      })
+      setFormData(emptyForm)
+      setSkillGroups([{ type: "", names: "" }])
+      setIsAddOpen(false)
+      toast.success("Expérience ajoutée avec succès !")
     } catch (err: any) {
-      setError(err.message || 'Erreur lors de l\'ajout');
-    } finally {
-      setAddLoading(false);
+      // Error handled by addError
     }
-  };
+  }
 
-  const handleUpdateExperience = async (index: number) => {
-    setEditLoading(true);
+  const handleUpdateExperience = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (editIndex === null) return
     try {
       const experienceInput = {
         ...editFormData,
         skills: parseSkillGroups(editSkillGroups),
-      };
-      await graphqlQuery(UPDATE_WORK_EXPERIENCE, {
-        profileId,
-        index,
-        input: experienceInput,
-      });
-      setError('');
-      await loadExperiences();
-      onExperienceUpdate?.();
-      setEditIndex(null);
-      alert('Expérience modifiée avec succès!');
+      }
+      await updateWorkExperience({
+        variables: { profileId, index: editIndex, input: experienceInput },
+      })
+      setIsEditOpen(false)
+      setEditIndex(null)
+      toast.success("Expérience modifiée avec succès !")
     } catch (err: any) {
-      setError(err.message || 'Erreur lors de la modification');
-    } finally {
-      setEditLoading(false);
+      // Error handled by editError
     }
-  };
+  }
 
   const handleRemoveExperience = async (index: number) => {
-    if (window.confirm('Êtes-vous sûr de vouloir supprimer cette expérience?')) {
-      setRemoveLoading(true);
-      try {
-        await graphqlQuery(REMOVE_WORK_EXPERIENCE, {
-          profileId,
-          index,
-        });
-        await loadExperiences();
-        onExperienceUpdate?.();
-        alert('Expérience supprimée avec succès!');
-      } catch (err: any) {
-        setError(err.message || 'Erreur lors de la suppression');
-      } finally {
-        setRemoveLoading(false);
-      }
+    try {
+      await removeWorkExperience({
+        variables: { profileId, index },
+      })
+      toast.success("Expérience supprimée avec succès !")
+    } catch (err: any) {
+      // Error handled by removeError
     }
-  };
+  }
+
+  if (queryLoading) {
+    return (
+      <div className="p-6 text-muted-foreground">
+        Chargement des expériences...
+      </div>
+    )
+  }
+
+  const error =
+    queryError?.message ||
+    addError?.message ||
+    editError?.message ||
+    removeError?.message
+
+  // Formulaire d'expérience réutilisable (rendu JSX pour éviter la duplication)
+  const renderForm = (
+    isEdit: boolean,
+    data: WorkExperienceForm,
+    handleDataChange: typeof handleInputChange,
+    groups: SkillGroup[],
+    handleGroupChange: typeof handleSkillGroupChange,
+    addGroup: () => void,
+    removeGroup: (idx: number) => void,
+    onSubmit: (e: React.FormEvent) => void,
+    loading: boolean
+  ) => (
+    <form
+      onSubmit={onSubmit}
+      className="max-h-[70vh] space-y-4 overflow-y-auto px-1 pt-4"
+    >
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>Entreprise *</Label>
+          <Input
+            name="company"
+            value={data.company}
+            onChange={handleDataChange}
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Poste *</Label>
+          <Input
+            name="role"
+            value={data.role}
+            onChange={handleDataChange}
+            required
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>Date de début *</Label>
+          <Input
+            type="date"
+            name="startDate"
+            value={data.startDate}
+            onChange={handleDataChange}
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Date de fin</Label>
+          <Input
+            type="date"
+            name="endDate"
+            value={data.endDate}
+            onChange={handleDataChange}
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>Localisation</Label>
+          <Input
+            name="location"
+            value={data.location}
+            onChange={handleDataChange}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Type de contrat</Label>
+          <Select
+            value={data.contractType}
+            onValueChange={(val) =>
+              handleDataChange({
+                target: { name: "contractType", value: val },
+              } as any)
+            }
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Sélectionner..." />
+            </SelectTrigger>
+            <SelectContent>
+              {CONTRACT_TYPES.map((type) => (
+                <SelectItem key={type} value={type}>
+                  {type}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label>Description</Label>
+        <Textarea
+          name="description"
+          value={data.description}
+          onChange={handleDataChange}
+          rows={3}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label>Réalisation principale</Label>
+        <Textarea
+          name="achievement"
+          value={data.achievement}
+          onChange={handleDataChange}
+          rows={2}
+        />
+      </div>
+
+      <div className="space-y-3">
+        <Label>Compétences développées</Label>
+        {groups.map((group, index) => (
+          <div key={index} className="flex items-center gap-2">
+            <Input
+              value={group.type}
+              onChange={(e) => handleGroupChange(index, "type", e.target.value)}
+              placeholder="Type (ex: Frontend)"
+              className="w-1/3"
+            />
+            <Input
+              value={group.names}
+              onChange={(e) =>
+                handleGroupChange(index, "names", e.target.value)
+              }
+              placeholder="Compétences (séparées par une virgule)"
+              className="flex-1"
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => removeGroup(index)}
+            >
+              <X className="size-4 text-destructive" />
+            </Button>
+          </div>
+        ))}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={addGroup}
+          className="w-full border-dashed"
+        >
+          <Plus className="mr-2 size-4" />
+          Ajouter un groupe de compétences
+        </Button>
+      </div>
+
+      <div className="flex justify-end pt-4">
+        <Button type="submit" disabled={loading} className="w-full sm:w-auto">
+          {loading
+            ? "Enregistrement..."
+            : isEdit
+              ? "Mettre à jour"
+              : "Ajouter l'expérience"}
+        </Button>
+      </div>
+    </form>
+  )
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      <h1 className="text-3xl font-bold mb-6">Gérer mes expériences professionnelles</h1>
+    <div className="mx-auto max-w-4xl p-6">
+      <div className="mb-8 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+        <div>
+          <h1 className="flex items-center gap-2 text-3xl font-bold">
+            <Briefcase className="size-8 text-primary" />
+            Mes expériences
+          </h1>
+          <p className="mt-1 text-muted-foreground">
+            Gérez votre parcours professionnel de manière chronologique.
+          </p>
+        </div>
 
-      {/* Liste des expériences */}
-      <div className="mb-8">
-        <h2 className="text-xl font-semibold mb-4">Mes expériences ({workExperiences.length})</h2>
-        {workExperiences.length === 0 ? (
-          <p className="text-gray-500">Aucune expérience pour le moment.</p>
-        ) : (
-          <div className="space-y-4">
-            {workExperiences.map((exp, index) => (
-              <div key={index} className="bg-white rounded-lg shadow-md p-4 border-l-4 border-blue-600">
-                <div className="flex justify-between items-start mb-2 gap-2">
+        {/* Modal d'ajout */}
+        <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+          <DialogTrigger render={<Button className="gap-2" />}>
+            <Plus className="size-4" />
+            Ajouter une expérience
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Ajouter une expérience</DialogTitle>
+            </DialogHeader>
+            {renderForm(
+              false,
+              formData,
+              handleInputChange,
+              skillGroups,
+              handleSkillGroupChange,
+              addSkillGroup,
+              removeSkillGroup,
+              handleAddExperience,
+              addLoading
+            )}
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {error && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertCircle className="size-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {/* Modal d'édition */}
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Modifier l'expérience</DialogTitle>
+          </DialogHeader>
+          {renderForm(
+            true,
+            editFormData,
+            handleEditInputChange,
+            editSkillGroups,
+            handleEditSkillGroupChange,
+            addEditSkillGroup,
+            removeEditSkillGroup,
+            handleUpdateExperience,
+            editLoading
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Timeline des expériences */}
+      {workExperiences.length === 0 ? (
+        <div className="rounded-lg border border-dashed bg-muted/30 py-12 text-center">
+          <Briefcase className="mx-auto mb-3 size-12 text-muted-foreground/50" />
+          <h3 className="text-lg font-medium">Aucune expérience</h3>
+          <p className="mt-1 text-muted-foreground">
+            Vous n'avez pas encore ajouté d'expérience professionnelle.
+          </p>
+          <Button
+            variant="outline"
+            className="mt-4"
+            onClick={() => setIsAddOpen(true)}
+          >
+            Commencer à remplir
+          </Button>
+        </div>
+      ) : (
+        <div className="relative space-y-6 pb-6 before:absolute before:inset-0 before:ml-5 before:h-full before:w-0.5 before:-translate-x-px before:bg-gradient-to-b before:from-transparent before:via-border before:to-transparent md:before:mx-auto md:before:translate-x-0">
+          {workExperiences.map((exp: any, index: number) => (
+            <div
+              key={index}
+              className="group relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse"
+            >
+              {/* Timeline marker */}
+              <div className="relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-4 border-background bg-primary shadow md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2">
+                <Briefcase className="size-4 text-primary-foreground" />
+              </div>
+
+              {/* Card */}
+              <div className="w-[calc(100%-4rem)] rounded-xl border bg-card p-5 shadow-sm transition-all hover:shadow-md md:w-[calc(50%-3rem)]">
+                <div className="mb-2 flex items-start justify-between">
                   <div>
-                    <h3 className="text-lg font-semibold">{exp.role}</h3>
-                    <p className="text-gray-600">{exp.company}</p>
+                    <h3 className="text-xl font-bold text-foreground">
+                      {exp.role}
+                    </h3>
+                    <p className="font-medium text-primary">{exp.company}</p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button
+
+                  {/* Actions (apparaissent au hover sur desktop) */}
+                  <div className="flex gap-1 transition-opacity md:opacity-0 md:group-hover:opacity-100">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-8"
                       onClick={() => startEdit(index)}
-                      disabled={removeLoading || addLoading || editLoading}
-                      className="px-3 py-1 bg-gray-800 text-white rounded hover:bg-gray-900 disabled:bg-gray-400 text-sm"
                     >
-                      Éditer
-                    </button>
-                    <button
-                      onClick={() => handleRemoveExperience(index)}
-                      disabled={removeLoading || editLoading}
-                      className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 disabled:bg-gray-400 text-sm"
-                    >
-                      Supprimer
-                    </button>
+                      <Pencil className="size-4" />
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger
+                        render={
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            className="hover:text-destructive-foreground text-destructive transition-colors hover:bg-destructive"
+                          />
+                        }
+                      >
+                        <Trash2 className="size-4" />
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>
+                            Supprimer l'expérience ?
+                          </AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Cette action est irréversible. L'expérience chez{" "}
+                            <strong>{exp.company}</strong> sera définitivement
+                            effacée.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Annuler</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleRemoveExperience(index)}
+                            className="text-destructive-foreground bg-destructive hover:bg-destructive/90"
+                          >
+                            Supprimer
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 </div>
 
-                {editIndex === index ? (
-                  <div className="mt-3">
-                    <div className="grid grid-cols-2 gap-4 mb-3">
-                      <input
-                        type="text"
-                        name="company"
-                        value={editFormData.company}
-                        onChange={handleEditInputChange}
-                        placeholder="Entreprise *"
-                        required
-                        className="px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                      <input
-                        type="text"
-                        name="role"
-                        value={editFormData.role}
-                        onChange={handleEditInputChange}
-                        placeholder="Poste *"
-                        required
-                        className="px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
+                <div className="mb-4 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                  <span className="flex items-center gap-1.5 rounded-md bg-muted px-2 py-1">
+                    <Calendar className="size-3.5" />
+                    {exp.startDate} - {exp.endDate || "Présent"}
+                  </span>
+                  {exp.location && (
+                    <span className="flex items-center gap-1.5">
+                      <MapPin className="size-3.5" /> {exp.location}
+                    </span>
+                  )}
+                  {exp.contractType && (
+                    <Badge variant="outline" className="text-xs font-normal">
+                      {exp.contractType}
+                    </Badge>
+                  )}
+                </div>
 
-                    <div className="grid grid-cols-2 gap-4 mb-3">
-                      <input
-                        type="date"
-                        name="startDate"
-                        value={editFormData.startDate}
-                        onChange={handleEditInputChange}
-                        placeholder="Date de début *"
-                        required
-                        className="px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                      <input
-                        type="date"
-                        name="endDate"
-                        value={editFormData.endDate}
-                        onChange={handleEditInputChange}
-                        placeholder="Date de fin"
-                        className="px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
+                {exp.description && (
+                  <p className="mb-4 text-sm leading-relaxed whitespace-pre-line text-foreground/90">
+                    {exp.description}
+                  </p>
+                )}
 
-                    <div className="grid grid-cols-2 gap-4 mb-3">
-                      <input
-                        type="text"
-                        name="location"
-                        value={editFormData.location}
-                        onChange={handleEditInputChange}
-                        placeholder="Localisation"
-                        className="px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                      <select
-                        name="contractType"
-                        value={editFormData.contractType}
-                        onChange={handleEditInputChange}
-                        className="px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="">Type de contrat</option>
-                        <option value="CDI">CDI</option>
-                        <option value="CDD">CDD</option>
-                        <option value="Stage">Stage</option>
-                        <option value="Freelance">Freelance</option>
-                        <option value="Alternance">Alternance</option>
-                      </select>
-                    </div>
-
-                    <textarea
-                      name="description"
-                      value={editFormData.description}
-                      onChange={handleEditInputChange}
-                      placeholder="Description"
-                      rows={3}
-                      className="w-full px-3 py-2 border rounded mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-
-                    <textarea
-                      name="achievement"
-                      value={editFormData.achievement}
-                      onChange={handleEditInputChange}
-                      placeholder="Réalisation principale"
-                      rows={2}
-                      className="w-full px-3 py-2 border rounded mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-
-                    <div className="space-y-2">
-                      {editSkillGroups.map((group, i) => (
-                        <div key={i} className="flex items-center gap-2">
-                          <input
-                            type="text"
-                            value={group.type}
-                            onChange={(e) => handleEditSkillGroupChange(i, 'type', e.target.value)}
-                            placeholder="Type (ex: Frontend)"
-                            className="px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                          <input
-                            type="text"
-                            value={group.names}
-                            onChange={(e) => handleEditSkillGroupChange(i, 'names', e.target.value)}
-                            placeholder="Compétences (ex: React, NextJs)"
-                            className="flex-1 px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                          <button type="button" onClick={() => removeEditSkillGroup(i)} className="text-red-500">X</button>
-                        </div>
-                      ))}
-                      <button type="button" onClick={addEditSkillGroup} className="text-blue-500">+ Ajouter un groupe</button>
-                    </div>
-
-                    <div className="flex items-center gap-2 mt-4">
-                      <button
-                        type="button"
-                        onClick={() => handleUpdateExperience(index)}
-                        disabled={editLoading}
-                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400"
-                      >
-                        {editLoading ? 'Enregistrement...' : 'Enregistrer'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={cancelEdit}
-                        disabled={editLoading}
-                        className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 disabled:bg-gray-100"
-                      >
-                        Annuler
-                      </button>
-                    </div>
+                {exp.achievement && (
+                  <div className="mb-4 rounded-lg border border-primary/10 bg-primary/5 p-3">
+                    <p className="text-sm font-medium text-primary">
+                      Réalisation clé
+                    </p>
+                    <p className="mt-1 text-sm">{exp.achievement}</p>
                   </div>
-                ) : (
-                  <>
-                    <div className="text-sm text-gray-600 mb-2">
-                      {exp.startDate} - {exp.endDate || 'Actuellement'}
-                    </div>
-                    {exp.location && <p className="text-sm text-gray-600">📍 {exp.location}</p>}
-                    {exp.contractType && <p className="text-sm text-gray-600">Contrat: {exp.contractType}</p>}
-                    {exp.description && <p className="text-sm mt-2">{exp.description}</p>}
-                    {exp.achievement && <p className="text-sm mt-2 font-medium">Réalisation: {exp.achievement}</p>}
-                  </>
                 )}
 
                 {Array.isArray(exp.skills) && exp.skills.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-3">
+                  <div className="mt-2 flex flex-wrap gap-1.5">
                     {exp.skills.map((skill: any, skillIndex: number) => (
-                      <span
-                        key={`${skill?.type || 'Autre'}-${skill?.name || 'skill'}-${skillIndex}`}
-                        className="inline-flex items-center px-2 py-0.5 rounded border bg-gray-50 text-gray-700 text-xs"
+                      <Badge
+                        key={`${skill?.type || "Autre"}-${skill?.name || "skill"}-${skillIndex}`}
+                        variant="secondary"
+                        className="text-xs font-normal"
                       >
-                        {skill?.type ? `${skill.type} · ` : ''}{skill?.name}
-                      </span>
+                        {skill?.type ? (
+                          <span className="mr-1 opacity-50">{skill.type}</span>
+                        ) : null}
+                        {skill?.name}
+                      </Badge>
                     ))}
                   </div>
                 )}
               </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Formulaire d'ajout */}
-      <form onSubmit={handleAddExperience} className="bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-xl font-semibold mb-4">Ajouter une expérience</h2>
-
-        {error && (
-          <div className="mb-4 p-3 bg-red-100 text-red-700 rounded">
-            {error}
-          </div>
-        )}
-
-        <div className="grid grid-cols-2 gap-4 mb-4">
-          <input
-            type="text"
-            name="company"
-            value={formData.company}
-            onChange={handleInputChange}
-            placeholder="Entreprise *"
-            required
-            className="px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <input
-            type="text"
-            name="role"
-            value={formData.role}
-            onChange={handleInputChange}
-            placeholder="Poste *"
-            required
-            className="px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4 mb-4">
-          <input
-            type="date"
-            name="startDate"
-            value={formData.startDate}
-            onChange={handleInputChange}
-            placeholder="Date de début *"
-            required
-            className="px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <input
-            type="date"
-            name="endDate"
-            value={formData.endDate}
-            onChange={handleInputChange}
-            placeholder="Date de fin"
-            className="px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4 mb-4">
-          <input
-            type="text"
-            name="location"
-            value={formData.location}
-            onChange={handleInputChange}
-            placeholder="Localisation"
-            className="px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <select
-            name="contractType"
-            value={formData.contractType}
-            onChange={handleInputChange}
-            className="px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">Type de contrat</option>
-            <option value="CDI">CDI</option>
-            <option value="CDD">CDD</option>
-            <option value="Stage">Stage</option>
-            <option value="Freelance">Freelance</option>
-            <option value="Alternance">Alternance</option>
-          </select>
-        </div>
-
-        <textarea
-          name="description"
-          value={formData.description}
-          onChange={handleInputChange}
-          placeholder="Description"
-          rows={3}
-          className="w-full px-3 py-2 border rounded mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-
-        <textarea
-          name="achievement"
-          value={formData.achievement}
-          onChange={handleInputChange}
-          placeholder="Réalisation principale"
-          rows={2}
-          className="w-full px-3 py-2 border rounded mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-
-        <div className="space-y-2 mb-4">
-          <h3 className="text-lg font-semibold">Compétences</h3>
-          {skillGroups.map((group, index) => (
-            <div key={index} className="flex items-center gap-2">
-              <input
-                type="text"
-                value={group.type}
-                onChange={(e) => handleSkillGroupChange(index, 'type', e.target.value)}
-                placeholder="Type (ex: Frontend)"
-                className="px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <input
-                type="text"
-                value={group.names}
-                onChange={(e) => handleSkillGroupChange(index, 'names', e.target.value)}
-                placeholder="Compétences (ex: React, NextJs)"
-                className="flex-1 px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <button type="button" onClick={() => removeSkillGroup(index)} className="text-red-500">X</button>
             </div>
           ))}
-          <button type="button" onClick={addSkillGroup} className="text-blue-500">+ Ajouter un groupe</button>
         </div>
-
-        <button
-          type="submit"
-          disabled={addLoading}
-          className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-400"
-        >
-          {addLoading ? 'Ajout en cours...' : 'Ajouter l\'expérience'}
-        </button>
-      </form>
+      )}
     </div>
-  );
+  )
 }
