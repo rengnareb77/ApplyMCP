@@ -1,22 +1,32 @@
 version: '3.8'
 
 services:
-  app:
+  backend:
     build:
       context: .
-      args:
-        - VITE_GRAPHQL_ENDPOINT_ARG=${VITE_GRAPHQL_ENDPOINT}
-    image: applymcp
+    image: applymcp-backend
     platform: linux/amd64
     ports:
       - "8080:8080"
     environment:
-      - SPRING_DATA_MONGODB_HOST=${MONGO_HOST}
-      - SPRING_DATA_MONGODB_PORT=${MONGO_PORT}
-      - SPRING_DATA_MONGODB_DATABASE=${MONGO_DATABASE}
+      - SPRING_DATA_MONGODB_HOST=${MONGO_HOST:-mongo}
+      - SPRING_DATA_MONGODB_PORT=${MONGO_PORT:-27017}
+      - SPRING_DATA_MONGODB_DATABASE=${MONGO_DATABASE:-applymcp}
     depends_on:
       mongo:
         condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        - VITE_GRAPHQL_ENDPOINT_ARG=${VITE_GRAPHQL_ENDPOINT:-http://localhost:8080/graphql}
+    image: applymcp-frontend
+    platform: linux/amd64
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
 
   mongo:
     image: mongo:7.0
