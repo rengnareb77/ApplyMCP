@@ -1,0 +1,53 @@
+version: '3.8'
+
+networks:
+  applymcp-network:
+    driver: bridge
+
+services:
+  backend:
+    # On pointe vers votre registre privé
+    image: registry.lucas-beranger.fr/applymcp/backend:latest
+    restart: unless-stopped
+    networks:
+      - applymcp-network
+    ports:
+      - "8080:8080" # Nginx Proxy Manager redirigera le trafic vers l'IP_DE_LA_VM:8080
+    environment:
+      # L'hôte correspond au nom du service MongoDB ci-dessous
+      - SPRING_DATA_MONGODB_HOST=mongo
+      - SPRING_DATA_MONGODB_PORT=27017
+      - SPRING_DATA_MONGODB_DATABASE=applymcp
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  frontend:
+    # On pointe vers votre registre privé
+    image: registry.lucas-beranger.fr/applymcp/frontend:latest
+    restart: unless-stopped
+    networks:
+      - applymcp-network
+    ports:
+      - "3000:80" # Nginx Proxy Manager redirigera le trafic vers l'IP_DE_LA_VM:3000
+    depends_on:
+      - backend
+
+  mongo:
+    image: mongo:7.0
+    restart: unless-stopped
+    networks:
+      - applymcp-network
+    ports:
+      - "27017:27017" # Utile si vous voulez utiliser MongoDB Compass depuis votre Mac
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+volumes:
+  mongo-data:
