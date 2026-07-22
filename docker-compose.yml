@@ -7,7 +7,7 @@ networks:
 services:
   backend:
     # On pointe vers votre registre privé
-    image: registry.lucas-beranger.fr/applymcp/backend:latest
+    image: registry.lucas-beranger.fr/applymcp/api-spring:latest
     restart: unless-stopped
     networks:
       - applymcp-network
@@ -24,7 +24,7 @@ services:
 
   frontend:
     # On pointe vers votre registre privé
-    image: registry.lucas-beranger.fr/applymcp/frontend:latest
+    image: registry.lucas-beranger.fr/applymcp/frontend-react:latest
     restart: unless-stopped
     networks:
       - applymcp-network
