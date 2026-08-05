@@ -2,7 +2,6 @@ package fr.applymcp.configuration;
 
 import fr.applymcp.model.Person;
 import fr.applymcp.repository.PersonRepository;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
@@ -19,7 +18,7 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     @Override
-    public void run(String @Nullable ... args) throws Exception {
+    public void run(String @Nullable... args) throws Exception {
         if (personRepository.count() == 0) {
             Person person = new Person();
             person.setFirstName("John");
