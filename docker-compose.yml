@@ -1,61 +1,33 @@
-version: '3.8'
-
-networks:
-  applymcp-network:
-    driver: bridge
-
 services:
   backend:
-    # On pointe vers votre registre privé
     image: registry.lucas-beranger.fr/applymcp/api-spring:latest
+    container_name: applymcp-backend
     restart: unless-stopped
-    networks:
-      - applymcp-network
     ports:
-      - "8080:8080" # Nginx Proxy Manager redirigera le trafic vers l'IP_DE_LA_VM:8080
+      - "8081:8080"
     environment:
-      # L'hôte correspond au nom du service MongoDB ci-dessous
-      - SPRING_DATA_MONGODB_HOST=mongo
-      - SPRING_DATA_MONGODB_PORT=27017
-      - SPRING_DATA_MONGODB_DATABASE=applymcp
+      SPRING_MONGODB_URI: mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongo:27017/applymcp?authSource=admin
     depends_on:
-      mongo:
-        condition: service_healthy
+      - mongo
 
   frontend:
-    # On pointe vers votre registre privé
     image: registry.lucas-beranger.fr/applymcp/frontend-react:latest
+    container_name: applymcp-frontend
     restart: unless-stopped
-    networks:
-      - applymcp-network
     ports:
-      - "3000:80" # Nginx Proxy Manager redirigera le trafic vers l'IP_DE_LA_VM:3000
-    depends_on:
-      - backend
+      - "3000:80"
 
   mongo:
-      image: mongo:7.0
-      restart: unless-stopped
-      networks:
-        - applymcp-network
-      ports:
-        - "27017:27017"
-      volumes:
-        - applymcp-mongo-data:/data/db
-      environment:
-        MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
-        MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
-      healthcheck:
-        # On ajoute l'authentification à la commande de test
-        test: >
-          mongosh --quiet --eval 'db.runCommand("ping").ok' 
-          -u $${MONGO_INITDB_ROOT_USERNAME} 
-          -p $${MONGO_INITDB_ROOT_PASSWORD} 
-          --authenticationDatabase admin || exit 1
-        interval: 10s
-        timeout: 10s
-        retries: 5
-        start_period: 40s
+    image: mongo:4.4
+    container_name: applymcp-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - applymcp-mongo-data:/data/db
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
 
 volumes:
-  mongo-data:
+  applymcp-mongo-data:
